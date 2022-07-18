@@ -58,13 +58,13 @@ class Detect(nn.Module):
                 if self.onnx_dynamic or self.grid[i].shape[2:4] != x[i].shape[2:4]:
                     self.grid[i], self.anchor_grid[i] = self._make_grid(nx, ny, i)
 
-                y = x[i].sigmoid()
+                y = x[i].clone()
                 if self.inplace:
-                    y[..., 0:2] = (y[..., 0:2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
-                    y[..., 2:4] = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
+                    y[..., 0:2] = (torch.sigmoid(y[..., 0:2]) + self.grid[i]) * self.stride[i]  # xy
+                    y[..., 2:4] = torch.exp(y[..., 2:4]) * self.anchor_grid[i]  # wh
                 else:  # for  on AWS Inferentia https://github.com/ultralytics/yolov5/pull/2953
-                    xy = (y[..., 0:2] * 2 - 0.5 + self.grid[i]) * self.stride[i]  # xy
-                    wh = (y[..., 2:4] * 2) ** 2 * self.anchor_grid[i]  # wh
+                    xy = (torch.sigmoid(y[..., 0:2]) + self.grid[i]) * self.stride[i]  # xy
+                    wh = torch.exp(y[..., 2:4]) * self.anchor_grid[i]  # wh
                     y = torch.cat((xy, wh, y[..., 4:]), -1)
                 z.append(y.view(bs, -1, self.no))
 
